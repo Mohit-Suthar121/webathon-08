@@ -42,7 +42,53 @@ export function calculateDistanceKm(
       Math.sin(dLng / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   const d = R * c;
-  return Math.round(d * 10) / 10; // Round to 1 decimal place
+  return Math.round(d * 10) / 10;
+}
+
+/**
+ * Resolves human-readable address and GPS coordinates from lat/lng
+ */
+export async function reverseGeocode(lat: number, lng: number): Promise<string> {
+  const coordSuffix = `(${lat.toFixed(4)}°N, ${lng.toFixed(4)}°E)`;
+
+  // Find nearest pre-defined common area as baseline
+  let nearestArea = COMMON_AREAS[0];
+  let minDistance = calculateDistanceKm(lat, lng, nearestArea.lat, nearestArea.lng);
+  for (const area of COMMON_AREAS) {
+    const dist = calculateDistanceKm(lat, lng, area.lat, area.lng);
+    if (dist < minDistance) {
+      minDistance = dist;
+      nearestArea = area;
+    }
+  }
+
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=16&addressdetails=1`,
+      {
+        headers: { "Accept": "application/json" },
+        signal: AbortSignal.timeout(3000),
+      }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      const addr = data.address;
+      if (addr) {
+        const parts = [
+          addr.suburb || addr.neighbourhood || addr.residential || addr.road || addr.quarter,
+          addr.city || addr.town || addr.county || "Jaipur",
+        ].filter(Boolean);
+
+        if (parts.length > 0) {
+          return `${parts.join(", ")} ${coordSuffix}`;
+        }
+      }
+    }
+  } catch (err) {
+    // fallback gracefully
+  }
+
+  return `${nearestArea.name} ${coordSuffix}`;
 }
 
 /**

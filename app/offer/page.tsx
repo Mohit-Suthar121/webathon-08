@@ -9,7 +9,8 @@ import LocationPickerMap from "@/components/LocationPickerMap";
 import { ProviderType, RequestCategory } from "@/types";
 import { createSupply } from "@/lib/store";
 import { pingHubHeartbeat } from "@/lib/blackout";
-import { COMMON_AREAS, DEFAULT_MAP_CENTER } from "@/lib/geo";
+import { COMMON_AREAS, DEFAULT_MAP_CENTER, reverseGeocode } from "@/lib/geo";
+import { cn } from "@/lib/utils";
 import confetti from "canvas-confetti";
 import {
   HeartHandshake,
@@ -50,13 +51,32 @@ export default function OfferSuppliesPage() {
     return () => clearInterval(interval);
   }, [providerName, areaName, lat, lng]);
 
+  const [isLocating, setIsLocating] = useState(false);
+
   const handleUseMyLocation = () => {
     if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition((pos) => {
-      setLat(pos.coords.latitude);
-      setLng(pos.coords.longitude);
-      setAreaName("Volunteer Staging GPS Point");
-    });
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const userLat = pos.coords.latitude;
+        const userLng = pos.coords.longitude;
+        setLat(userLat);
+        setLng(userLng);
+        try {
+          const resolved = await reverseGeocode(userLat, userLng);
+          setAreaName(resolved);
+        } catch {
+          setAreaName(`Staging Point (${userLat.toFixed(4)}°N, ${userLng.toFixed(4)}°E)`);
+        } finally {
+          setIsLocating(false);
+        }
+      },
+      () => {
+        setIsLocating(false);
+        alert("Could not access GPS location. Please select an area below or pin on map.");
+      },
+      { timeout: 10000, enableHighAccuracy: true }
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -277,11 +297,12 @@ export default function OfferSuppliesPage() {
                   </label>
                   <button
                     type="button"
+                    disabled={isLocating}
                     onClick={handleUseMyLocation}
-                    className="flex items-center gap-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 px-3 py-1 text-xs font-medium transition-colors"
+                    className="flex items-center gap-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 px-3 py-1 text-xs font-medium transition-colors cursor-pointer disabled:opacity-50"
                   >
-                    <LocateFixed className="h-3.5 w-3.5 text-emerald-400" />
-                    <span>Use My GPS</span>
+                    <LocateFixed className={cn("h-3.5 w-3.5 text-emerald-400", isLocating && "animate-spin")} />
+                    <span>{isLocating ? "Acquiring GPS & Address..." : "Use My GPS"}</span>
                   </button>
                 </div>
 
@@ -292,12 +313,12 @@ export default function OfferSuppliesPage() {
                       key={area.name}
                       type="button"
                       onClick={() => {
-                        setAreaName(area.name);
+                        setAreaName(`${area.name} (${area.lat.toFixed(4)}°N, ${area.lng.toFixed(4)}°E)`);
                         setLat(area.lat);
                         setLng(area.lng);
                       }}
-                      className={`text-[10px] rounded-md px-2 py-1 font-mono transition-colors border ${
-                        areaName === area.name
+                      className={`text-[10px] rounded-md px-2 py-1 font-mono transition-colors border cursor-pointer ${
+                        areaName.includes(area.name)
                           ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 font-bold"
                           : "bg-slate-900/60 text-slate-400 border-slate-800 hover:border-slate-700"
                       }`}
@@ -321,9 +342,15 @@ export default function OfferSuppliesPage() {
                 <LocationPickerMap
                   lat={lat}
                   lng={lng}
-                  onChange={(newLat, newLng) => {
+                  onChange={async (newLat, newLng) => {
                     setLat(newLat);
                     setLng(newLng);
+                    try {
+                      const resolved = await reverseGeocode(newLat, newLng);
+                      setAreaName(resolved);
+                    } catch {
+                      setAreaName(`Staging Depot (${newLat.toFixed(4)}°N, ${newLng.toFixed(4)}°E)`);
+                    }
                   }}
                 />
               </div>

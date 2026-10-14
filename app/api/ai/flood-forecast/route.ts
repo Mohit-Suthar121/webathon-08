@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { callGemini, isGeminiConfigured } from "@/lib/ai/gemini";
 import { FloodAdvisory, FloodRiskZone } from "@/types";
 import { DEFAULT_MAP_CENTER } from "@/lib/geo";
@@ -71,7 +71,7 @@ const WARD_PROFILES = [
   },
 ];
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     let currentRainMm = 14.2;
     let forecast24hMm = 52.8;

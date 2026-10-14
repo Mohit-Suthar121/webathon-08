@@ -9,7 +9,8 @@ import LocationPickerMap from "@/components/LocationPickerMap";
 import { RequestCategory, UrgencyLevel } from "@/types";
 import { createRequest } from "@/lib/store";
 import { checkPhoneRateLimit, recordPhoneSubmission } from "@/lib/rateLimit";
-import { COMMON_AREAS, DEFAULT_MAP_CENTER } from "@/lib/geo";
+import { COMMON_AREAS, DEFAULT_MAP_CENTER, reverseGeocode } from "@/lib/geo";
+import { cn } from "@/lib/utils";
 import confetti from "canvas-confetti";
 import {
   AlertTriangle,
@@ -140,26 +141,40 @@ export default function RequestHelpPage() {
     }
   };
 
-  // Browser Geolocation
+  const [isLocating, setIsLocating] = useState<boolean>(false);
+
+  // Browser Geolocation with Real Reverse Geocoding & Coordinates
   const handleUseMyLocation = () => {
     if (!navigator.geolocation) {
       alert("Geolocation is not supported by your browser");
       return;
     }
+    setIsLocating(true);
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setLat(position.coords.latitude);
-        setLng(position.coords.longitude);
-        setAreaName("Current GPS Location (Citizen Pinned)");
+      async (position) => {
+        const userLat = position.coords.latitude;
+        const userLng = position.coords.longitude;
+        setLat(userLat);
+        setLng(userLng);
+        try {
+          const resolvedAddress = await reverseGeocode(userLat, userLng);
+          setAreaName(resolvedAddress);
+        } catch {
+          setAreaName(`GPS Location (${userLat.toFixed(4)}°N, ${userLng.toFixed(4)}°E)`);
+        } finally {
+          setIsLocating(false);
+        }
       },
       (err) => {
+        setIsLocating(false);
         alert("Could not access GPS location. Please pick an area below or pin on map.");
-      }
+      },
+      { timeout: 10000, enableHighAccuracy: true }
     );
   };
 
   const handleSelectCommonArea = (area: (typeof COMMON_AREAS)[0]) => {
-    setAreaName(area.name);
+    setAreaName(`${area.name} (${area.lat.toFixed(4)}°N, ${area.lng.toFixed(4)}°E)`);
     setLat(area.lat);
     setLng(area.lng);
   };
@@ -519,21 +534,29 @@ export default function RequestHelpPage() {
                       <Users className="h-4 w-4 text-sky-400" />
                       <span>Headcount</span>
                     </span>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                       <button
                         type="button"
                         onClick={() => setPeopleAffected((prev) => Math.max(1, prev - 1))}
-                        className="h-8 w-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center border border-slate-700 text-sm"
+                        className="h-9 w-9 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center border border-slate-700 text-base cursor-pointer"
                       >
                         -
                       </button>
-                      <span className="font-mono text-xl font-bold text-white w-6 text-center">
-                        {peopleAffected}
-                      </span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={100}
+                        value={peopleAffected}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value, 10);
+                          setPeopleAffected(isNaN(val) ? 1 : Math.max(1, Math.min(100, val)));
+                        }}
+                        className="w-16 h-9 rounded-lg bg-slate-900 border border-slate-700 text-center font-mono text-lg font-bold text-white focus:border-rose-500 focus:outline-none focus:ring-1 focus:ring-rose-500"
+                      />
                       <button
                         type="button"
-                        onClick={() => setPeopleAffected((prev) => Math.min(50, prev + 1))}
-                        className="h-8 w-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center border border-slate-700 text-sm"
+                        onClick={() => setPeopleAffected((prev) => Math.min(100, prev + 1))}
+                        className="h-9 w-9 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center border border-slate-700 text-base cursor-pointer"
                       >
                         +
                       </button>
@@ -577,11 +600,12 @@ export default function RequestHelpPage() {
                   </label>
                   <button
                     type="button"
+                    disabled={isLocating}
                     onClick={handleUseMyLocation}
-                    className="flex items-center gap-1.5 rounded-lg bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-500/30 px-3 py-1 text-xs font-medium transition-colors"
+                    className="flex items-center gap-1.5 rounded-lg bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-500/30 px-3 py-1 text-xs font-medium transition-colors cursor-pointer disabled:opacity-50"
                   >
-                    <LocateFixed className="h-3.5 w-3.5 text-sky-400" />
-                    <span>Use My GPS Location</span>
+                    <LocateFixed className={cn("h-3.5 w-3.5 text-sky-400", isLocating && "animate-spin")} />
+                    <span>{isLocating ? "Acquiring GPS & Address..." : "Use My GPS Location"}</span>
                   </button>
                 </div>
 
@@ -592,8 +616,8 @@ export default function RequestHelpPage() {
                       key={area.name}
                       type="button"
                       onClick={() => handleSelectCommonArea(area)}
-                      className={`text-[10px] rounded-md px-2 py-1 font-mono transition-colors border ${
-                        areaName === area.name
+                      className={`text-[10px] rounded-md px-2 py-1 font-mono transition-colors border cursor-pointer ${
+                        areaName.includes(area.name)
                           ? "bg-amber-500/20 text-amber-300 border-amber-500/40 font-bold"
                           : "bg-slate-900/60 text-slate-400 border-slate-800 hover:border-slate-700"
                       }`}
@@ -609,7 +633,7 @@ export default function RequestHelpPage() {
                     required
                     value={areaName}
                     onChange={(e) => setAreaName(e.target.value)}
-                    placeholder="Enter landmark, ward, or street name"
+                    placeholder="Enter landmark, ward, street or coordinates"
                     className="w-full rounded-xl border border-slate-700/80 bg-slate-900/80 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-rose-500 focus:outline-none focus:ring-1 focus:ring-rose-500"
                   />
                 </div>
@@ -617,9 +641,15 @@ export default function RequestHelpPage() {
                 <LocationPickerMap
                   lat={lat}
                   lng={lng}
-                  onChange={(newLat, newLng) => {
+                  onChange={async (newLat, newLng) => {
                     setLat(newLat);
                     setLng(newLng);
+                    try {
+                      const resolved = await reverseGeocode(newLat, newLng);
+                      setAreaName(resolved);
+                    } catch {
+                      setAreaName(`Pinned Point (${newLat.toFixed(4)}°N, ${newLng.toFixed(4)}°E)`);
+                    }
                   }}
                 />
                 <p className="text-[11px] text-slate-400 mt-1.5 font-mono">

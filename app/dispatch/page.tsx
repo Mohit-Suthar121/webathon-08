@@ -676,7 +676,7 @@ ${sitRepData.resourceBottlenecks?.map((b: string) => `! ${b}`).join("\n")}`;
 
       {/* SITUATION REPORT (SITREP) MODAL */}
       {showSitRepModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
           <div className="relative w-full max-w-3xl rounded-3xl border border-slate-700 bg-slate-900/95 p-6 sm:p-8 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-start justify-between pb-4 border-b border-slate-800">
               <div className="flex items-center gap-3">
