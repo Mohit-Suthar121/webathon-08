@@ -64,8 +64,8 @@ export default function Navbar() {
             </div>
           </Link>
 
-          {/* Navigation Items */}
-          <nav className="flex items-center gap-1 sm:gap-2">
+          {/* Desktop Navigation Items */}
+          <nav className="hidden sm:flex items-center gap-1 sm:gap-2">
             {navLinks.map((link) => {
               const Icon = link.icon;
               const isActive = pathname === link.href;
@@ -230,6 +230,47 @@ export default function Navbar() {
           </div>
         </div>
       )}
+
+      {/* MOBILE BOTTOM NAVIGATION BAR (PWA Native Mobile App Experience) */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 flex sm:hidden items-center justify-around border-t border-slate-800/90 bg-[#070B14]/95 backdrop-blur-xl px-1 py-1.5">
+        {navLinks.map((link) => {
+          const Icon = link.icon;
+          const isActive = pathname === link.href;
+          return (
+            <Link
+              key={link.href}
+              href={link.href}
+              className={cn(
+                "flex flex-col items-center justify-center gap-1 rounded-xl px-2.5 py-1 text-[10px] font-medium transition-all duration-150 min-w-[60px]",
+                isActive
+                  ? "text-white font-bold"
+                  : "text-slate-400 hover:text-slate-200",
+                link.highlight && !isActive && "text-rose-400"
+              )}
+            >
+              <div className="relative">
+                <Icon
+                  className={cn(
+                    "h-5 w-5 transition-transform",
+                    isActive ? "scale-110 text-rose-400" : "",
+                    link.highlight && !isActive ? "text-rose-400" : ""
+                  )}
+                />
+                {link.highlight && (
+                  <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                  </span>
+                )}
+              </div>
+              <span className="truncate">{link.label}</span>
+              {isActive && (
+                <span className="h-0.5 w-4 rounded-full bg-rose-500 mt-0.5"></span>
+              )}
+            </Link>
+          );
+        })}
+      </nav>
     </>
   );
 }

@@ -237,7 +237,7 @@ export default function RequestHelpPage() {
     <div className="min-h-screen flex flex-col bg-[#070B14] bg-crisis-grid">
       <Navbar />
 
-      <main className="flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 py-8 sm:py-12">
+      <main className="flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 pt-6 pb-28 sm:py-12">
         {submittedRequest ? (
           /* Animated Success State with Tracking ID and Status Timeline */
           <div className="glass-panel-elevated rounded-3xl p-6 sm:p-10 border border-emerald-500/40 shadow-2xl text-center max-w-2xl mx-auto animate-in fade-in zoom-in-95 duration-300">

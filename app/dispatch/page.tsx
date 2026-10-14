@@ -503,7 +503,7 @@ ${sitRepData.resourceBottlenecks?.map((b: string) => `! ${b}`).join("\n")}`;
       </div>
 
       {/* Main Command Workspace: 40% Feed | 60% Map */}
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden pb-16 sm:pb-0">
         {/* Left 40% Column: Live Feed */}
         <div
           className={cn(
