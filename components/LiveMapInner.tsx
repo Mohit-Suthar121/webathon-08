@@ -44,13 +44,22 @@ export default function LiveMapInner({
       zoomControl: false,
     });
 
-    // Dark CARTO Basemap Tiles (No API key needed)
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-      attribution:
-        '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      subdomains: "abcd",
-      maxZoom: 19,
-    }).addTo(map);
+    // Dark Basemap Tiles (100% Free, No Watermark, No API Key Required)
+    L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+      {
+        attribution: "Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ",
+        maxZoom: 18,
+      }
+    ).addTo(map);
+
+    // Dark Reference Labels overlay for sharp sector/road names
+    L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}",
+      {
+        maxZoom: 18,
+      }
+    ).addTo(map);
 
     L.control
       .zoom({

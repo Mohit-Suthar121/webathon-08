@@ -279,27 +279,28 @@ export async function createRequest(
     verified: false,
   };
 
-  if (isDemoMode()) {
-    inMemoryRequests = [newRequest, ...inMemoryRequests];
-    saveToLocalStorage();
-    notifyRequests();
-    broadcastChange("SYNC_REQUESTS", inMemoryRequests);
-    return newRequest;
+  // Optimistically commit locally and notify all listeners immediately
+  inMemoryRequests = [newRequest, ...inMemoryRequests];
+  saveToLocalStorage();
+  notifyRequests();
+  broadcastChange("SYNC_REQUESTS", inMemoryRequests);
+
+  // Background cloud sync to Firestore if configured
+  if (db && !isDemoMode()) {
+    Promise.race([
+      setDoc(doc(db, "requests", id), {
+        ...newRequest,
+        createdAtServer: serverTimestamp(),
+      }),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Firestore sync timeout")), 1200)
+      ),
+    ]).catch((err) => {
+      console.warn("Firestore createRequest sync deferred or offline:", err?.message || err);
+    });
   }
 
-  try {
-    await setDoc(doc(db!, "requests", id), {
-      ...newRequest,
-      createdAtServer: serverTimestamp(),
-    });
-    return newRequest;
-  } catch (err) {
-    console.error("Firestore createRequest error, persisting locally:", err);
-    inMemoryRequests = [newRequest, ...inMemoryRequests];
-    saveToLocalStorage();
-    notifyRequests();
-    return newRequest;
-  }
+  return newRequest;
 }
 
 /**
@@ -319,27 +320,28 @@ export async function createSupply(
     available: data.available !== undefined ? data.available : true,
   };
 
-  if (isDemoMode()) {
-    inMemorySupplies = [newSupply, ...inMemorySupplies];
-    saveToLocalStorage();
-    notifySupplies();
-    broadcastChange("SYNC_SUPPLIES", inMemorySupplies);
-    return newSupply;
+  // Optimistically commit locally and notify all listeners immediately
+  inMemorySupplies = [newSupply, ...inMemorySupplies];
+  saveToLocalStorage();
+  notifySupplies();
+  broadcastChange("SYNC_SUPPLIES", inMemorySupplies);
+
+  // Background cloud sync to Firestore if configured
+  if (db && !isDemoMode()) {
+    Promise.race([
+      setDoc(doc(db, "supplies", id), {
+        ...newSupply,
+        createdAtServer: serverTimestamp(),
+      }),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Firestore sync timeout")), 1200)
+      ),
+    ]).catch((err) => {
+      console.warn("Firestore createSupply sync deferred or offline:", err?.message || err);
+    });
   }
 
-  try {
-    await setDoc(doc(db!, "supplies", id), {
-      ...newSupply,
-      createdAtServer: serverTimestamp(),
-    });
-    return newSupply;
-  } catch (err) {
-    console.error("Firestore createSupply error, persisting locally:", err);
-    inMemorySupplies = [newSupply, ...inMemorySupplies];
-    saveToLocalStorage();
-    notifySupplies();
-    return newSupply;
-  }
+  return newSupply;
 }
 
 /**
@@ -348,28 +350,25 @@ export async function createSupply(
 export async function updateRequestStatus(id: string, status: RequestStatus): Promise<void> {
   initializeStore();
 
-  if (isDemoMode()) {
-    inMemoryRequests = inMemoryRequests.map((req) =>
-      req.id === id ? { ...req, status, updatedAt: Date.now() } : req
-    );
-    saveToLocalStorage();
-    notifyRequests();
-    broadcastChange("SYNC_REQUESTS", inMemoryRequests);
-    return;
-  }
+  inMemoryRequests = inMemoryRequests.map((req) =>
+    req.id === id ? { ...req, status, updatedAt: Date.now() } : req
+  );
+  saveToLocalStorage();
+  notifyRequests();
+  broadcastChange("SYNC_REQUESTS", inMemoryRequests);
 
-  try {
-    await updateDoc(doc(db!, "requests", id), {
-      status,
-      updatedAtServer: serverTimestamp(),
+  if (db && !isDemoMode()) {
+    Promise.race([
+      updateDoc(doc(db, "requests", id), {
+        status,
+        updatedAtServer: serverTimestamp(),
+      }),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Firestore status update timeout")), 1200)
+      ),
+    ]).catch((err) => {
+      console.warn("Firestore updateRequestStatus sync deferred:", err?.message || err);
     });
-  } catch (err) {
-    console.error("Firestore updateRequestStatus error:", err);
-    inMemoryRequests = inMemoryRequests.map((req) =>
-      req.id === id ? { ...req, status, updatedAt: Date.now() } : req
-    );
-    saveToLocalStorage();
-    notifyRequests();
   }
 }
 
@@ -383,67 +382,62 @@ export async function updateRequestStatus(id: string, status: RequestStatus): Pr
 export async function assignSupply(requestId: string, supplyId: string): Promise<void> {
   initializeStore();
 
-  if (isDemoMode()) {
-    let assignedSupply: ReliefSupply | undefined;
+  let assignedSupply: ReliefSupply | undefined;
 
-    inMemorySupplies = inMemorySupplies.map((s) => {
-      if (s.id === supplyId) {
-        const newQty = Math.max(0, s.quantity - 1);
-        assignedSupply = {
-          ...s,
-          quantity: newQty,
-          available: newQty > 0,
-          updatedAt: Date.now(),
-        };
-        return assignedSupply;
-      }
-      return s;
-    });
+  inMemorySupplies = inMemorySupplies.map((s) => {
+    if (s.id === supplyId) {
+      const newQty = Math.max(0, s.quantity - 1);
+      assignedSupply = {
+        ...s,
+        quantity: newQty,
+        available: newQty > 0,
+        updatedAt: Date.now(),
+      };
+      return assignedSupply;
+    }
+    return s;
+  });
 
-    inMemoryRequests = inMemoryRequests.map((req) => {
-      if (req.id === requestId) {
-        return {
-          ...req,
-          assignedSupplyId: supplyId,
-          status: "assigned" as const,
-          updatedAt: Date.now(),
-        };
-      }
-      return req;
-    });
+  inMemoryRequests = inMemoryRequests.map((req) => {
+    if (req.id === requestId) {
+      return {
+        ...req,
+        assignedSupplyId: supplyId,
+        status: "assigned" as const,
+        updatedAt: Date.now(),
+      };
+    }
+    return req;
+  });
 
-    saveToLocalStorage();
-    notifyRequests();
-    notifySupplies();
-    broadcastChange("SYNC_ALL", { requests: inMemoryRequests, supplies: inMemorySupplies });
-    return;
-  }
+  saveToLocalStorage();
+  notifyRequests();
+  notifySupplies();
+  broadcastChange("SYNC_ALL", { requests: inMemoryRequests, supplies: inMemorySupplies });
 
-  try {
+  if (db && !isDemoMode()) {
     const supply = inMemorySupplies.find((s) => s.id === supplyId);
     const newQty = supply ? Math.max(0, supply.quantity - 1) : 0;
 
-    await updateDoc(doc(db!, "requests", requestId), {
-      assignedSupplyId: supplyId,
-      status: "assigned",
-      updatedAtServer: serverTimestamp(),
+    Promise.race([
+      Promise.all([
+        updateDoc(doc(db, "requests", requestId), {
+          assignedSupplyId: supplyId,
+          status: "assigned",
+          updatedAtServer: serverTimestamp(),
+        }),
+        updateDoc(doc(db, "supplies", supplyId), {
+          quantity: newQty,
+          available: newQty > 0,
+          updatedAtServer: serverTimestamp(),
+        }),
+      ]),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Firestore assignSupply timeout")), 1200)
+      ),
+    ]).catch((err) => {
+      console.warn("Firestore assignSupply sync deferred:", err?.message || err);
     });
-
-    await updateDoc(doc(db!, "supplies", supplyId), {
-      quantity: newQty,
-      available: newQty > 0,
-      updatedAtServer: serverTimestamp(),
-    });
-  } catch (err) {
-    console.error("Firestore assignSupply error:", err);
-    // fallback local update
-    inMemoryRequests = inMemoryRequests.map((req) =>
-      req.id === requestId
-        ? { ...req, assignedSupplyId: supplyId, status: "assigned", updatedAt: Date.now() }
-        : req
-    );
-    saveToLocalStorage();
-    notifyRequests();
   }
 }
 

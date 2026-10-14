@@ -10,7 +10,7 @@
 - **Styling & Aesthetics:** Tailwind CSS v4, dark crisis command-center aesthetic (`#070B14`), glassmorphism, glowing telemetry radar rings
 - **Icons & Animation:** `lucide-react`, `framer-motion`, `canvas-confetti`
 - **Charts:** `recharts` (Donut category breakdown, Area volume timeline)
-- **Map:** Leaflet + React Leaflet with dark CARTO tiles (no API key required)
+- **Map:** Leaflet + React Leaflet with dark ESRI Canvas tiles (zero API key required, clean dark basemap)
 - **Real-Time Data Layer:** Dual-mode architecture (`lib/store.ts`):
   - **Firebase Firestore:** Realtime `onSnapshot` sync when credentials exist in `.env.local`.
   - **Demo Mode Fallback:** In-memory store persisted to `localStorage` and synced instantaneously across open browser tabs via `BroadcastChannel`.
