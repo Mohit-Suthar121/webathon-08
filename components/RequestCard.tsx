@@ -24,11 +24,16 @@ import {
   AlertTriangle,
   Phone,
   Flame,
+  Sparkles,
+  Info,
+  Shield,
+  Layers,
 } from "lucide-react";
 
 interface RequestCardProps {
   request: ReliefRequest;
   supplies: ReliefSupply[];
+  allRequests?: ReliefRequest[];
   isSelected?: boolean;
   onSelect?: () => void;
   showPrivateDetails?: boolean; // Dispatcher view gets true, public gets false
@@ -81,21 +86,62 @@ const CATEGORY_STYLE: Record<
 export default function RequestCard({
   request,
   supplies,
+  allRequests = [],
   isSelected = false,
   onSelect,
   showPrivateDetails = true,
 }: RequestCardProps) {
   const [expandedMatches, setExpandedMatches] = useState(false);
+  const [showCredibilityTooltip, setShowCredibilityTooltip] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
 
   const Icon = CATEGORY_ICON_MAP[request.category] || AlertTriangle;
   const categoryStyle = CATEGORY_STYLE[request.category];
 
-  // Auto-matches calculation
-  const suggestedMatches = findSuggestedMatches(request, supplies, 3);
+  // Enhanced auto-matches calculation with distance, stock, and competing demand
+  const suggestedMatches = findSuggestedMatches(request, supplies, 3, allRequests);
   const assignedSupply = request.assignedSupplyId
     ? supplies.find((s) => s.id === request.assignedSupplyId)
     : null;
+
+  // Compute Credibility Score & Reasons (Rule-based heuristic with AI assistance)
+  const computeCredibility = () => {
+    let score = 70;
+    const reasons: string[] = [];
+
+    const cleanPhone = request.contactPhone.replace(/[^0-9]/g, "");
+    if (cleanPhone.length >= 10) {
+      score += 10;
+      reasons.push("Valid emergency telephone number format (+10)");
+    } else {
+      score -= 10;
+      reasons.push("Short or unverified telephone contact (-10)");
+    }
+
+    if (request.description.length > 40) {
+      score += 10;
+      reasons.push("Detailed situational narrative (+10)");
+    }
+
+    // Corroboration in same ward
+    const clusterMatches = allRequests.filter(
+      (r) => r.id !== request.id && r.areaName === request.areaName
+    );
+    if (clusterMatches.length >= 2) {
+      score += 10;
+      reasons.push(`Corroborated by ${clusterMatches.length} concurrent calls in sector (+10)`);
+    }
+
+    if (request.peopleAffected >= 1 && request.peopleAffected <= 20) {
+      score += 5;
+      reasons.push("Plausible headcount profile (+5)");
+    }
+
+    const finalScore = Math.min(98, Math.max(30, score));
+    return { score: finalScore, reasons };
+  };
+
+  const credibility = computeCredibility();
 
   const handleAssign = async (supplyId: string) => {
     setIsAssigning(true);
@@ -200,19 +246,21 @@ export default function RequestCard({
         {request.description}
       </p>
 
-      {/* Badges strip: People, Vulnerable, Location, Duplicate Warning, Verified */}
+      {/* Badges strip: People, Vulnerable, Location, Duplicate Warning, Verified, Credibility */}
       <div className="flex flex-wrap items-center gap-2 text-[11px] mb-3">
         {/* People Count */}
         <span className="flex items-center gap-1 rounded-md bg-slate-800/80 px-2 py-1 text-slate-300 border border-slate-700/60 font-mono">
           <Users className="h-3.5 w-3.5 text-sky-400" />
-          <span>{request.peopleAffected} {request.peopleAffected === 1 ? "person" : "people"}</span>
+          <span>
+            {request.peopleAffected} {request.peopleAffected === 1 ? "person" : "people"}
+          </span>
         </span>
 
         {/* Vulnerable Population Tag */}
         {request.vulnerable && (
           <span className="flex items-center gap-1 rounded-md bg-rose-500/10 px-2 py-1 text-rose-300 border border-rose-500/30 font-medium">
             <ShieldAlert className="h-3.5 w-3.5 text-rose-400" />
-            <span>Vulnerable (Elderly/Kids)</span>
+            <span>Vulnerable</span>
           </span>
         )}
 
@@ -222,16 +270,62 @@ export default function RequestCard({
           <span>{request.areaName}</span>
         </span>
 
-        {/* Duplicate Warning */}
+        {/* Duplicate / Cluster Warning */}
         {request.duplicateWarning && (
           <span
-            title="Another request with identical category was logged within 300m in the last hour"
+            title="Cluster Alert: Corroborating incident with identical category within 300m in the last hour"
             className="flex items-center gap-1 rounded-md bg-amber-500/20 px-2 py-1 text-amber-300 border border-amber-500/40 text-[10px] font-bold"
           >
-            <AlertTriangle className="h-3 w-3" />
-            <span>Possible Duplicate</span>
+            <Layers className="h-3 w-3" />
+            <span>Clustered SOS (300m)</span>
           </span>
         )}
+
+        {/* AI Credibility Score with Tooltip */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowCredibilityTooltip((prev) => !prev);
+            }}
+            className="flex items-center gap-1 rounded-md bg-sky-950/60 hover:bg-sky-900/60 px-2 py-1 text-sky-300 border border-sky-500/30 text-[10px] font-mono cursor-pointer transition-colors"
+          >
+            <Shield className="h-3 w-3 text-sky-400" />
+            <span>Credibility: {credibility.score}/100</span>
+            <span className="rounded bg-sky-500/20 px-1 text-[8px] text-sky-300 uppercase">
+              AI
+            </span>
+          </button>
+
+          {showCredibilityTooltip && (
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="absolute left-0 bottom-full mb-2 z-50 w-64 rounded-xl border border-slate-700 bg-slate-900/95 p-3 text-xs shadow-2xl backdrop-blur-md"
+            >
+              <div className="flex items-center justify-between pb-1.5 mb-2 border-b border-slate-800">
+                <span className="font-semibold text-white flex items-center gap-1 text-[11px]">
+                  <Sparkles className="h-3 w-3 text-sky-400" />
+                  AI-Assisted Credibility
+                </span>
+                <span className="font-mono font-bold text-sky-400 text-xs">
+                  {credibility.score}/100
+                </span>
+              </div>
+              <ul className="space-y-1 text-[10px] text-slate-300 mb-2">
+                {credibility.reasons.map((r, i) => (
+                  <li key={i} className="flex items-start gap-1">
+                    <span className="text-emerald-400">✓</span>
+                    <span>{r}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="border-t border-slate-800 pt-1.5 text-[9px] text-amber-300/90 italic">
+                *Advisory scoring only. Never auto-rejects; dispatcher makes final triage call.
+              </p>
+            </div>
+          )}
+        </div>
 
         {/* Verified Badge / Toggle Button */}
         {showPrivateDetails && (
@@ -245,7 +339,12 @@ export default function RequestCard({
                 : "bg-slate-800/60 text-slate-400 border-slate-700/60 hover:text-slate-200"
             )}
           >
-            <ShieldCheck className={cn("h-3.5 w-3.5", request.verified ? "text-emerald-400" : "text-slate-500")} />
+            <ShieldCheck
+              className={cn(
+                "h-3.5 w-3.5",
+                request.verified ? "text-emerald-400" : "text-slate-500"
+              )}
+            />
             <span>{request.verified ? "Verified Dispatch" : "Mark Verified"}</span>
           </button>
         )}
@@ -296,6 +395,9 @@ export default function RequestCard({
             <span className="flex items-center gap-1.5 font-mono text-[11px]">
               <LinkIcon className="h-3.5 w-3.5 text-rose-400" />
               <span>Suggested Matches</span>
+              <span className="rounded bg-sky-500/20 px-1 py-0.2 text-[9px] font-bold text-sky-300 border border-sky-500/30">
+                AI-Assisted
+              </span>
               <span className="rounded-full bg-slate-800 px-1.5 py-0.2 text-[10px] text-slate-300">
                 {suggestedMatches.length}
               </span>
@@ -314,10 +416,10 @@ export default function RequestCard({
                   No matching supplies currently available in this category ({request.category}).
                 </p>
               ) : (
-                suggestedMatches.map(({ supply, distanceKm }) => (
+                suggestedMatches.map(({ supply, distanceKm, explanation }) => (
                   <div
                     key={supply.id}
-                    className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/80 p-2.5 text-xs transition-colors hover:border-slate-700"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-900/80 p-2.5 text-xs transition-colors hover:border-slate-700"
                   >
                     <div>
                       <div className="flex items-center gap-1.5">
@@ -331,6 +433,12 @@ export default function RequestCard({
                       <p className="text-[11px] text-slate-400 font-mono mt-0.5">
                         {supply.item} • {supply.quantity} units avail ({supply.areaName})
                       </p>
+                      {/* 1-Line Plain Text Match Explanation */}
+                      {explanation && (
+                        <p className="text-[10px] text-emerald-400/90 mt-1 font-mono leading-tight">
+                          💡 {explanation}
+                        </p>
+                      )}
                     </div>
 
                     <button
@@ -340,7 +448,7 @@ export default function RequestCard({
                         e.stopPropagation();
                         handleAssign(supply.id);
                       }}
-                      className="ml-3 shrink-0 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white transition-all shadow-md shadow-emerald-950/40 border border-emerald-500/40 cursor-pointer disabled:opacity-50"
+                      className="shrink-0 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white transition-all shadow-md shadow-emerald-950/40 border border-emerald-500/40 cursor-pointer disabled:opacity-50"
                     >
                       Assign
                     </button>

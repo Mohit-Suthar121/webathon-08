@@ -32,6 +32,9 @@ export interface ReliefRequest {
   urgencyScore: number; // 0-100
   verified?: boolean;
   duplicateWarning?: boolean;
+  credibilityScore?: number; // 0-100
+  credibilityReasons?: string[];
+  isAiAssisted?: boolean;
   updatedAt?: number;
 }
 
@@ -48,12 +51,17 @@ export interface ReliefSupply {
   contactPhone: string;
   available: boolean;
   createdAt: number;
+  lastSeen?: number; // heartbeat timestamp
   updatedAt?: number;
 }
 
 export interface MatchSuggestion {
   supply: ReliefSupply;
   distanceKm: number;
+  score?: number;
+  competingDemand?: number; // number of open requests needing this same supply
+  explanation?: string;
+  isAiAssisted?: boolean;
 }
 
 export interface DispatchKPIs {
@@ -63,4 +71,54 @@ export interface DispatchKPIs {
   fulfilledCount: number;
   activeSuppliesCount: number;
   avgResponseMinutes: number;
+}
+
+export interface HubHeartbeat {
+  hubId: string;
+  hubName: string;
+  areaName: string;
+  lat: number;
+  lng: number;
+  lastSeen: number;
+}
+
+export interface BlackoutAlert {
+  id: string;
+  wardName: string;
+  lat: number;
+  lng: number;
+  radiusMeters: number;
+  lastSignalAgoMinutes: number;
+  missedPings?: number;
+  severity: 'possible';
+  detectedAt: number;
+  reason: string;
+}
+
+export interface FloodRiskZone {
+  wardName: string;
+  lat: number;
+  lng: number;
+  riskScore: number; // 0-100
+  riskLevel: 'low' | 'moderate' | 'high' | 'severe';
+  rainfallMm: number;
+  riverProximityKm: number;
+  elevationMeters: number;
+  soilSaturationIndex: number;
+  factors: string[];
+}
+
+export interface FloodAdvisory {
+  city: string;
+  overallRisk: number;
+  advisory: string;
+  prePositionAdvice: string[];
+  weatherSummary: {
+    currentRainMm: number;
+    forecast24hMm: number;
+    riverDischargeEstimate: string;
+  };
+  dataSource: string;
+  isAiAssisted: boolean;
+  wardRisks: FloodRiskZone[];
 }

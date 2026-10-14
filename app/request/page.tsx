@@ -24,6 +24,11 @@ import {
   Flame,
   AlertCircle,
   ExternalLink,
+  Mic,
+  MicOff,
+  Sparkles,
+  Languages,
+  Loader2,
 } from "lucide-react";
 
 export default function RequestHelpPage() {
@@ -40,6 +45,100 @@ export default function RequestHelpPage() {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [rateLimitError, setRateLimitError] = useState<string | null>(null);
   const [submittedRequest, setSubmittedRequest] = useState<any | null>(null);
+
+  // Smart Intake (Multilingual Voice / Text)
+  const [nlInput, setNlInput] = useState<string>("");
+  const [isListening, setIsListening] = useState<boolean>(false);
+  const [isAiParsing, setIsAiParsing] = useState<boolean>(false);
+  const [aiParsedNotice, setAiParsedNotice] = useState<string | null>(null);
+
+  // Web Speech API Voice Dictation
+  const handleToggleVoice = () => {
+    if (typeof window === "undefined") return;
+
+    const SpeechRec =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRec) {
+      alert("Voice recognition is not supported in this browser. Please type in Hindi, English, or Hinglish.");
+      return;
+    }
+
+    if (isListening) {
+      setIsListening(false);
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRec();
+      recognition.lang = "hi-IN"; // Supports Hindi & Hinglish
+      recognition.continuous = false;
+      recognition.interimResults = false;
+
+      recognition.onstart = () => setIsListening(true);
+      recognition.onend = () => setIsListening(false);
+      recognition.onerror = () => setIsListening(false);
+
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setNlInput(transcript);
+        handleAiParse(transcript);
+      };
+
+      recognition.start();
+    } catch (err) {
+      console.warn("Speech recognition error:", err);
+      setIsListening(false);
+    }
+  };
+
+  // AI Intake Parser
+  const handleAiParse = async (textToParse = nlInput) => {
+    if (!textToParse.trim()) return;
+    setIsAiParsing(true);
+    setAiParsedNotice(null);
+
+    try {
+      const res = await fetch("/api/ai/intake", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: textToParse }),
+      });
+
+      if (!res.ok) throw new Error("AI parsing request failed");
+      const { data, isAiAssisted, engine } = await res.json();
+
+      if (data) {
+        if (data.category) setCategory(data.category);
+        if (data.urgency) setUrgency(data.urgency);
+        if (data.peopleAffected) setPeopleAffected(data.peopleAffected);
+        if (data.vulnerable !== undefined) setVulnerable(data.vulnerable);
+        if (data.summary) setDescription(data.summary);
+
+        if (data.areaName && data.areaName !== "Jaipur Relief Zone") {
+          const matchArea = COMMON_AREAS.find((a) =>
+            a.name.toLowerCase().includes(data.areaName.toLowerCase())
+          );
+          if (matchArea) {
+            setAreaName(matchArea.name);
+            setLat(matchArea.lat);
+            setLng(matchArea.lng);
+          } else {
+            setAreaName(data.areaName);
+          }
+        }
+
+        setAiParsedNotice(
+          `AI-assisted pre-fill active (${engine}): Please verify the details below before broadcasting.`
+        );
+      }
+    } catch (err) {
+      console.error("AI Intake error:", err);
+      setDescription(textToParse);
+    } finally {
+      setIsAiParsing(false);
+    }
+  };
 
   // Browser Geolocation
   const handleUseMyLocation = () => {
@@ -254,6 +353,120 @@ export default function RequestHelpPage() {
                 </div>
               </div>
             )}
+
+            {/* SMART INTAKE: Multilingual Voice & Natural Language Box */}
+            <div className="mb-8 rounded-2xl border border-sky-500/30 bg-gradient-to-br from-sky-950/40 via-slate-900/60 to-purple-950/30 p-4 sm:p-5 relative overflow-hidden backdrop-blur-md">
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-500/20 text-sky-400 border border-sky-500/40">
+                    <Sparkles className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold uppercase tracking-wider text-white flex items-center gap-1.5">
+                      <span>Smart Multilingual Intake</span>
+                      <span className="rounded bg-sky-500/20 px-1.5 py-0.2 text-[9px] font-mono text-sky-300 border border-sky-500/40">
+                        AI-Assisted
+                      </span>
+                    </span>
+                    <p className="text-[11px] text-slate-400">
+                      Speak or describe your emergency in Hindi, English, or Hinglish.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Voice Dictation Button */}
+                <button
+                  type="button"
+                  onClick={handleToggleVoice}
+                  className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all border cursor-pointer ${
+                    isListening
+                      ? "bg-rose-600 text-white border-rose-500 animate-pulse ring-2 ring-rose-500/50"
+                      : "bg-slate-800/90 text-slate-200 border-slate-700 hover:bg-slate-700"
+                  }`}
+                >
+                  {isListening ? (
+                    <>
+                      <MicOff className="h-3.5 w-3.5" />
+                      <span>Listening...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Mic className="h-3.5 w-3.5 text-rose-400" />
+                      <span>Voice SOS</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Natural Language Input Field */}
+              <div className="relative mb-3">
+                <textarea
+                  rows={2}
+                  value={nlInput}
+                  onChange={(e) => setNlInput(e.target.value)}
+                  placeholder="E.g., Ghar me 4 log fase hain, paani 4 feet chadh gaya hai aur dadaji diabetic hain, Sanganer me..."
+                  className="w-full rounded-xl border border-slate-700/80 bg-slate-900/90 p-3 text-xs sm:text-sm text-white placeholder-slate-500 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                />
+              </div>
+
+              {/* Sample Prompt Chips & Action Bar */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-[10px] text-slate-400 flex items-center gap-1 font-mono">
+                    <Languages className="h-3 w-3 text-slate-400" /> Try:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const t = "Ghar me 4 log fase hain paani 4 feet chadh gaya hai dadaji diabetic hain Sanganer me";
+                      setNlInput(t);
+                      handleAiParse(t);
+                    }}
+                    className="text-[10px] font-mono rounded bg-slate-800/80 hover:bg-slate-700 px-2 py-0.5 text-slate-300 border border-slate-700/60"
+                  >
+                    Hindi/Hinglish Flood Trapped
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const t = "Roof blown away in Amer Valley, 6 family members with 2 small children need emergency shelter tarpaulins";
+                      setNlInput(t);
+                      handleAiParse(t);
+                    }}
+                    className="text-[10px] font-mono rounded bg-slate-800/80 hover:bg-slate-700 px-2 py-0.5 text-slate-300 border border-slate-700/60"
+                  >
+                    Shelter Needed in Amer
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={isAiParsing || !nlInput.trim()}
+                  onClick={() => handleAiParse(nlInput)}
+                  className="shrink-0 flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 px-4 py-2 text-xs font-bold text-white shadow-md shadow-sky-950/40 border border-sky-500/40 cursor-pointer disabled:opacity-50"
+                >
+                  {isAiParsing ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <span>Parsing with AI...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+                      <span>Auto-Analyze & Fill</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Pre-fill confirmation notice */}
+              {aiParsedNotice && (
+                <div className="mt-3 rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-2.5 text-xs text-emerald-300 flex items-center gap-2 animate-in fade-in">
+                  <CheckCircle className="h-4 w-4 text-emerald-400 shrink-0" />
+                  <span>{aiParsedNotice}</span>
+                </div>
+              )}
+            </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* 1. Category Picker */}

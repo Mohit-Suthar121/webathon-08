@@ -1,12 +1,15 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { ReliefRequest, ReliefSupply } from "@/types";
-import { Loader2, MapPin } from "lucide-react";
+import { BlackoutAlert, FloodRiskZone, ReliefRequest, ReliefSupply } from "@/types";
+import { Loader2 } from "lucide-react";
 
 interface LiveMapProps {
   requests: ReliefRequest[];
   supplies: ReliefSupply[];
+  blackoutAlerts?: BlackoutAlert[];
+  floodZones?: FloodRiskZone[];
+  showFloodOverlay?: boolean;
   selectedRequestId?: string | null;
   selectedSupplyId?: string | null;
   onSelectRequest?: (req: ReliefRequest) => void;

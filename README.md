@@ -61,6 +61,42 @@ Zero configuration is needed to run immediately: the app defaults to **Demo Mode
 
 ---
 
+## 🤖 ReliefHub "AI Layer" (Server-Side Route Handlers)
+
+All AI invocations are orchestrated through isolated Next.js Route Handlers (`app/api/ai/*`) keeping `GEMINI_API_KEY` strictly on the server. **Every feature degrades gracefully to robust rule-based NLP / heuristic fallbacks** if the API key is not provided or if external services are unreachable.
+
+### 1. Silence & Communication Blackout Detection
+- **Volunteer / Hub Heartbeat:** Active client sessions on `/offer` ping every **60 seconds**, updating `lastSeen` telemetry.
+- **Baseline Drop Analysis:** Flags a municipal sector as `"Possible blackout"` when activity drops **>70% vs baseline over 15 minutes**, or a registered supply hub misses **3 expected check-ins** (>180s without signal).
+- **Map & Dispatcher Alerts:**
+  - Displays grey pulsing zones on the tactical map.
+  - Shows top banner on `/dispatch`: *"⚠️ Possible communication blackout in Mansarovar Ward 14, last signal 14 min ago. Verify with field responders or amateur radio."*
+  - Dedicated **"Simulate Blackout"** demo button for live judging presentations.
+
+### 2. Hydrological Flood Risk Forecast (Open-Meteo + Gemini)
+- **Live Meteorological Feed:** Fetches hourly rainfall, 24-hour precipitation sums, and river runoff estimates from **Open-Meteo API** (zero API key required).
+- **Per-Ward Risk Index (0–100):** Transparently scores risk based on 24h rainfall (mm), low-lying basin elevation (e.g. Sanganer Basin 382m vs Civil Lines 438m), river proximity, and soil saturation.
+- **Tactical Map Overlay:** Toggleable colored flood zones (Green / Amber / Red) on the CARTO dark map.
+- **AI Operational Advisory:** Gemini synthesizes weather and flood topography to generate plain-language supply pre-positioning directives.
+
+### 3. Smart Multilingual & Voice Intake (`/request`)
+- **Speech & Free-Text Input:** Built-in **Web Speech API** dictation and free-text box accepting **Hindi, English, or Hinglish** (e.g., *"Ghar me 4 log fase hain paani 4 feet chadh gaya hai dadaji diabetic hain"*).
+- **Structured JSON Extraction (`/api/ai/intake`):** Gemini parses category, urgency, headcount, vulnerable flags, and sector landmarks to pre-fill the form.
+- **Rule-Based Fallback:** Multi-keyword Devanagari & Romanized Hindi regex extractor runs automatically if Gemini is unconfigured.
+- **Human In The Loop:** Clearly tagged as `[AI-Assisted]` — citizen reviews and confirms before broadcasting.
+
+### 4. Dispatcher Intelligence
+- **Credibility Scoring (0–100):** Computes score based on phone validity, landmark specificity, and cluster corroboration from concurrent calls in the ward. **Never auto-rejects**; provides detailed rationale to the human dispatcher.
+- **One-Click Situation Report (SitRep):** Button on `/dispatch` synthesizes live requests and supplies to produce:
+  - Executive Operational Assessment
+  - Top 5 Immediate Priorities (with IDs, urgency, and descriptions)
+  - Immediate Tactical Actions
+  - Critical Resource Deficit Bottlenecks
+  - One-click "Copy SitRep for Briefing"
+- **Multi-Factor Auto-Match:** Factors in Haversine distance, stock sufficiency, and competing queue load, providing a concise **1-line explanation** for each suggestion (e.g., *"AI-Assisted: 1.4 km away with 120 units available; low competing queue (1 nearby pending)."*).
+
+---
+
 ## 🗺️ Application Architecture
 
 - `/` — **Cinematic Landing Page:** Animated radar waves, live counter KPIs, ticker, and 3-step crisis workflow.

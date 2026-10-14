@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -8,6 +8,7 @@ import CategoryPicker from "@/components/CategoryPicker";
 import LocationPickerMap from "@/components/LocationPickerMap";
 import { ProviderType, RequestCategory } from "@/types";
 import { createSupply } from "@/lib/store";
+import { pingHubHeartbeat } from "@/lib/blackout";
 import { COMMON_AREAS, DEFAULT_MAP_CENTER } from "@/lib/geo";
 import confetti from "canvas-confetti";
 import {
@@ -20,6 +21,7 @@ import {
   CheckCircle,
   ArrowRight,
   LocateFixed,
+  Radio,
 } from "lucide-react";
 
 export default function OfferSuppliesPage() {
@@ -35,6 +37,18 @@ export default function OfferSuppliesPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedSupply, setSubmittedSupply] = useState<any | null>(null);
+
+  // 60-second volunteer/hub heartbeat
+  useEffect(() => {
+    const hubId = "SESSION-HUB-ACTIVE";
+    pingHubHeartbeat(hubId, providerName || "Active Volunteer Station", areaName, lat, lng);
+
+    const interval = setInterval(() => {
+      pingHubHeartbeat(hubId, providerName || "Active Volunteer Station", areaName, lat, lng);
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [providerName, areaName, lat, lng]);
 
   const handleUseMyLocation = () => {
     if (!navigator.geolocation) return;
