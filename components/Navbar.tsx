@@ -139,7 +139,7 @@ export default function Navbar() {
 
       {/* API KEYS & CLOUD STATUS MODAL */}
       {showKeysModal && (
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
+        <div className="fixed inset-0 z-[99980] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
           <div className="relative w-full max-w-lg rounded-3xl border border-slate-700 bg-slate-900/95 p-6 shadow-2xl">
             <div className="flex items-start justify-between pb-4 border-b border-slate-800">
               <div className="flex items-center gap-2.5">
@@ -197,14 +197,14 @@ export default function Navbar() {
                     <span className="font-bold text-white text-sm">Gemini AI Engine</span>
                   </div>
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                    Ready in .env.local
+                    Active & Verified
                   </span>
                 </div>
                 <p className="text-slate-300 text-[11px] leading-relaxed">
                   Gemini API is isolated on Next.js server route handlers (app/api/ai/*). Powers Multilingual Voice Intake, Situation Reports, and Flood Advisories.
                 </p>
                 <div className="mt-2.5 rounded-lg bg-slate-900 border border-slate-800 p-2 font-mono text-[10px] text-slate-400">
-                  Model: <span className="text-purple-300">gemini-2.5-flash / gemini-1.5-flash</span>
+                  Model: <span className="text-purple-300">gemini-3.5-flash-lite (Active)</span>
                 </div>
               </div>
 

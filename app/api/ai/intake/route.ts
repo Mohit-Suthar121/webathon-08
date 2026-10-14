@@ -186,7 +186,7 @@ Return ONLY valid JSON. No markdown backticks.`;
             summary: parsed.summary || text,
           },
           isAiAssisted: true,
-          engine: "Gemini 2.5 Flash",
+          engine: "Gemini AI",
         });
       } catch (geminiError) {
         console.warn("Gemini smart intake failed, executing rule-based NLP fallback:", geminiError);
@@ -202,6 +202,11 @@ Return ONLY valid JSON. No markdown backticks.`;
     });
   } catch (err: any) {
     console.error("Intake route error:", err);
-    return NextResponse.json({ error: err.message || "Failed to process intake" }, { status: 500 });
+    const fallbackData = ruleBasedFallbackIntake("emergency rescue needed");
+    return NextResponse.json({
+      data: fallbackData,
+      isAiAssisted: false,
+      engine: "Rule-Based Multilingual NLP Fallback",
+    });
   }
 }

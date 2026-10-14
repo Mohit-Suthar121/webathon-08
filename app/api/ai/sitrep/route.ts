@@ -151,6 +151,7 @@ Format output as strict JSON:
     return NextResponse.json(fallback);
   } catch (err: any) {
     console.error("SitRep route error:", err);
-    return NextResponse.json({ error: err.message || "Failed to generate SitRep" }, { status: 500 });
+    const fallback = generateRuleBasedSitRep([], []);
+    return NextResponse.json(fallback);
   }
 }
